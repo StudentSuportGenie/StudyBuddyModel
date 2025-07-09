@@ -1,0 +1,45 @@
+when used in ubunto sever sudo apt-get install tesseract-ocr
+i used this  OCR  library for image visualitation :-  pip install pytesseract pillow
+
+
+from PIL import Image
+import pytesseract
+import cv2
+import numpy as np
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import torch
+
+# Path to Tesseract (only for Windows)
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+# Load image
+image_path = '3.png'
+img_pil = Image.open(image_path)
+img_cv = cv2.imread(image_path)
+
+# 1. Extract text using Tesseract
+text = pytesseract.image_to_string(img_pil)
+
+
+# 3. Generate image caption using BLIP (image description)
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+
+inputs = processor(images=img_pil, return_tensors="pt")
+out = model.generate(**inputs)
+caption = processor.decode(out[0], skip_special_tokens=True)
+
+# Final Output
+print("📄 Extracted Text:")
+print(text.strip())
+print("\n🧍 Person Info:")
+print("\n🖼️ Image Description:")
+print(caption)
+
+
+
+install theis ones 
+
+
+pip install mistralai
+pip install langchain-chroma

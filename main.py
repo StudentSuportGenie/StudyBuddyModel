@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
+
+
 # Load environment variables
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_API")

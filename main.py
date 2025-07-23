@@ -11,8 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
-
-
 # Load environment variables
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_API")
@@ -99,7 +97,7 @@ async def giveanswersusingPDF(request: QARequest):
         # Load embeddings and Chroma vector DB
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         vector_store = Chroma(persist_directory=user_db_path, embedding_function=embeddings)
-        retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+        retriever = vector_store.as_retriever(search_kwargs={"k": 5})
         docs = retriever.get_relevant_documents(request.question)
         context = "\n".join(doc.page_content for doc in docs)
 

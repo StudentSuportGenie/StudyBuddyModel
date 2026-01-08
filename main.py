@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-import google.generativeai as genai
+from google.genai import Client
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ if not GOOGLE_API_KEY:
     print("Error: Google API key not found")
     sys.exit(1)
 
-genai.configure(api_key=GOOGLE_API_KEY)
+client = Client(api_key=GOOGLE_API_KEY)
 
 # FastAPI setup
 app = FastAPI()
@@ -102,7 +102,8 @@ async def giveanswersusingPDF(request: QARequest):
         context = "\n".join(doc.page_content for doc in docs)
 
         # Gemini model
-        model = genai.GenerativeModel("gemma-3n-e2b-it")
+        # model = genai.GenerativeModel("gemma-3n-e2b-it")
+        model = client.generative_model("gemini-1.5-flash")
 
         prompt = f"""
 You are an assistant. Use the following extracted text and user input to answer the question clearly and accurately.

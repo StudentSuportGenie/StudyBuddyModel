@@ -1,7 +1,10 @@
+# Trigger reload for new .env configuration
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.api import router
-from app.Config import Appconfig
+from app.Config.Appconfig import configure_gemini
+
+configure_gemini()
 
 app = FastAPI()
 

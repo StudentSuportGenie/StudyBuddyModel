@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-dotenv
+google-generativeai
+PyMuPDF
+requests
+Pillow
+pydantic
+langchain-huggingface
+langchain-chroma
+sentence-transformers

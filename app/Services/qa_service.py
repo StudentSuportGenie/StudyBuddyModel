@@ -2,7 +2,7 @@ import google.generativeai as genai
 
 
 def get_answer(context, extra_text, question):
-    model = genai.GenerativeModel("gemma-3n-e2b-it")
+    model = genai.GenerativeModel("gemini-flash-latest")
 
     prompt = f"""
 You are an assistant. Use the following extracted text and user input to answer the question clearly and accurately.

@@ -9,3 +9,8 @@ class QARequest(BaseModel):
     useremail: str
     text: str
     question: str
+
+
+class ImageRequest(BaseModel):
+    image_url: str
+    useremail: str

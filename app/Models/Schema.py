@@ -1,8 +1,8 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Union
 
 class PDFRequest(BaseModel):
-    url: List[str]
+    url: Union[List[str], str]
     useremail: str
 
 class QARequest(BaseModel):

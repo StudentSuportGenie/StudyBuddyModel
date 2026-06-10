@@ -1,10 +1,19 @@
 import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def store_text_to_chroma(text: str, useremail: str) -> int:
-    chunks = [c.strip() for c in text.split(". ") if c.strip()]
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50,
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+    
+
+    chunks = text_splitter.split_text(text)
+    chunks = [c.strip() for c in chunks if c.strip()]
 
     user_db_path = os.path.join(
         "AnswerDB", useremail.replace("@", "_").replace(".", "_"))

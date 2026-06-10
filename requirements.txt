@@ -9,3 +9,5 @@ pydantic
 langchain-huggingface
 langchain-chroma
 sentence-transformers
+langchain-google-genai
+langchain-text-splitters

@@ -52,13 +52,24 @@ async def answer(request: QARequest):
         answer = get_answer(context, request.text, request.question)
         return {"answer": answer}
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "answer": "Service error: An internal backend error occurred.",
-                "detail": str(e),
-            },
-        )
+        error_msg = str(e)
+        if "429" in error_msg or "quota" in error_msg.lower():
+            # Rate limit - return user-friendly message
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "answer": "The system has reached its API rate limit. Please try again in a few moments.",
+                    "detail": "Rate limit exceeded. Retrying after some time should resolve this."
+                },
+            )
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "answer": "Service error: An internal backend error occurred.",
+                    "detail": str(e),
+                },
+            )
 
 @router.get("/")
 async def home():
@@ -80,5 +91,16 @@ async def scan_image(request: ImageRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image processing failed: {str(e)}")
+        error_msg = str(e)
+        if "429" in error_msg or "quota" in error_msg.lower():
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "message": "Image processing rate limited",
+                    "extracted_content": "[Processing temporarily unavailable due to API rate limit]",
+                    "detail": "Please try again after a few moments."
+                }
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"Image processing failed: {str(e)}")
 

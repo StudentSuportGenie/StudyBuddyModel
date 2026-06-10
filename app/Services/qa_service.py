@@ -1,63 +1,57 @@
 import time
+import os
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 
 
 def get_answer(context, extra_text, question):
     """
-    Get answer with retry logic and rate limit handling.
-    Retries up to 3 times with exponential backoff.
+    Get answer with retry logic and fallback to Mistral if Gemini fails.
     """
-    max_retries = 3
-    retry_delay = 2  # Start with 2 seconds
-    
-    for attempt in range(max_retries):
-        try:
-            # Initialize LangChain's ChatGoogleGenerativeAI component using gemini-1.5-flash
-            llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0)
+    # Use LangChain ChatPromptTemplate to construct the system and human messages
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", (
+            "You are an assistant. Use the following extracted text and user input "
+            "to answer the question clearly and accurately.\n\n"
+            "--- Extracted Text ---\n"
+            "{context}\n\n"
+            "--- Additional Input ---\n"
+            "{extra_text}"
+        )),
+        ("human", "{question}"),
+    ])
 
-            # Use LangChain ChatPromptTemplate to construct the system and human messages
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", (
-                    "You are an assistant. Use the following extracted text and user input "
-                    "to answer the question clearly and accurately.\n\n"
-                    "--- Extracted Text ---\n"
-                    "{context}\n\n"
-                    "--- Additional Input ---\n"
-                    "{extra_text}"
-                )),
-                ("human", "{question}"),
-            ])
-
-            # Chain definition
-            chain = prompt | llm
-
-            # Invoke the chain
-            response = chain.invoke({
-                "context": context,
-                "extra_text": extra_text,
-                "question": question
-            })
-
-            return response.content
+    # First try Gemini
+    try:
+        llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0, api_key=os.environ.get("GOOGLE_API_KEY"))
+        chain = prompt | llm
+        response = chain.invoke({
+            "context": context,
+            "extra_text": extra_text,
+            "question": question
+        })
+        return response.content
+    except Exception as e:
+        print(f"Gemini failed: {str(e)}. Falling back to Mistral...")
+        
+    # If Gemini fails, fallback to Mistral
+    try:
+        mistral_api_key = os.environ.get("MISTRAL_API_KEY")
+        if not mistral_api_key:
+            raise ValueError("Mistral API key not found in environment.")
             
-        except Exception as e:
-            error_str = str(e)
-            
-            # Check if it's a rate limit error (429)
-            if "429" in error_str or "quota" in error_str.lower():
-                if attempt < max_retries - 1:
-                    print(f"Rate limit hit (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
-                    continue
-                else:
-                    # Last attempt failed - return graceful fallback
-                    print("Rate limit exceeded. Returning fallback response.")
-                    return generate_fallback_answer(context, question)
-            else:
-                # Non-rate-limit error, raise it
-                raise
+        mistral_llm = ChatMistralAI(model="mistral-large-latest", temperature=0, mistral_api_key=mistral_api_key)
+        mistral_chain = prompt | mistral_llm
+        mistral_response = mistral_chain.invoke({
+            "context": context,
+            "extra_text": extra_text,
+            "question": question
+        })
+        return mistral_response.content
+    except Exception as e:
+        print(f"Mistral fallback also failed: {str(e)}")
+        return generate_fallback_answer(context, question)
 
 
 def generate_fallback_answer(context, question):

@@ -1,5 +1,6 @@
 import base64
 import time
+import os
 import requests
 from io import BytesIO
 from PIL import Image
@@ -45,48 +46,56 @@ IMAGE DESCRIPTION:
 [brief overall description of the image content]
 """
 
-    # Retry logic with exponential backoff
-    max_retries = 3
-    retry_delay = 2
-    
-    for attempt in range(max_retries):
-        try:
-            # Initialize LangChain's ChatGoogleGenerativeAI component using gemini-2.0-flash
-            llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    # Try Gemini First
+    try:
+        # Initialize LangChain's ChatGoogleGenerativeAI component using gemini-2.0-flash
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0, api_key=os.environ.get("GOOGLE_API_KEY"))
 
-            # Create LangChain HumanMessage containing text and image_url dict with base64 data URL
-            message = HumanMessage(
-                content=[
-                    {"type": "text", "text": prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-                    },
-                ]
-            )
+        # Create LangChain HumanMessage containing text and image_url dict with base64 data URL
+        message = HumanMessage(
+            content=[
+                {"type": "text", "text": prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                },
+            ]
+        )
 
-            # Invoke LLM with the message list
-            gemini_response = llm.invoke([message])
+        # Invoke LLM with the message list
+        gemini_response = llm.invoke([message])
 
-            return gemini_response.content
-            
-        except Exception as e:
-            error_str = str(e)
-            
-            # Check if it's a rate limit error (429)
-            if "429" in error_str or "quota" in error_str.lower():
-                if attempt < max_retries - 1:
-                    print(f"Rate limit hit on image analysis (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                    continue
-                else:
-                    # Last attempt failed - return fallback
-                    print("Rate limit exceeded on image analysis. Returning fallback.")
-                    return generate_image_fallback()
-            else:
-                # Non-rate-limit error, raise it
-                raise
+        return gemini_response.content
+        
+    except Exception as e:
+        print(f"Gemini image analysis failed: {str(e)}. Falling back to Mistral...")
+        
+    # Mistral Fallback
+    try:
+        mistral_api_key = os.environ.get("MISTRAL_API_KEY")
+        if not mistral_api_key:
+             raise ValueError("Mistral API key not found in environment.")
+        
+        from langchain_mistralai import ChatMistralAI
+        # pixtral-12b-2409 is the mistral vision model
+        mistral_llm = ChatMistralAI(model="pixtral-12b-2409", temperature=0, mistral_api_key=mistral_api_key)
+        
+        # Reconstruct message for mistral
+        message = HumanMessage(
+            content=[
+                {"type": "text", "text": prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                },
+            ]
+        )
+        
+        mistral_response = mistral_llm.invoke([message])
+        return mistral_response.content
+    except Exception as e:
+        print(f"Mistral image analysis failed: {str(e)}")
+        return generate_image_fallback()
 
 
 def generate_image_fallback():

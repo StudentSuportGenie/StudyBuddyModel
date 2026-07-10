@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from app.Models.Schema import PDFRequest, QARequest, ImageRequest
 from app.Services.pdf_service import extract_text_from_pdf_url
 from app.Services.vector_service import store_text_to_chroma, load_user_vector_db
-from app.Services.qa_service import get_answer
+from app.Services.qa_service import get_answer, get_answer_stream
 from app.Services.imageRead import extract_text_from_image_url
 
 router = APIRouter()
@@ -41,7 +41,7 @@ async def create_vector_db(request: PDFRequest):
 async def answer(request: QARequest):
     try:
         db = load_user_vector_db(request.useremail)
-        retriever = db.as_retriever(search_kwargs={"k": 5})
+        retriever = db.as_retriever(search_kwargs={"k": 3})
         docs = await retriever.ainvoke(request.question)
 
         if not docs:
@@ -70,6 +70,43 @@ async def answer(request: QARequest):
                     "detail": str(e),
                 },
             )
+
+
+@router.post("/GetAnswerStream")
+async def answer_stream(request: QARequest):
+    try:
+        db = load_user_vector_db(request.useremail)
+        retriever = db.as_retriever(search_kwargs={"k": 3})
+        docs = await retriever.ainvoke(request.question)
+
+        if not docs:
+            context = ""
+        else:
+            context = "\n".join(d.page_content for d in docs)
+
+        return StreamingResponse(
+            get_answer_stream(context, request.text, request.question),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "429" in error_msg or "quota" in error_msg.lower():
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "answer": "The system has reached its API rate limit. Please try again in a few moments.",
+                    "detail": str(e),
+                },
+            )
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "answer": "Service error: An internal backend error occurred.",
+                    "detail": str(e),
+                },
+            )
+
 
 @router.get("/")
 async def home():
